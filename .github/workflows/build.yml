@@ -1,0 +1,39 @@
+name: Eurometrics APK Uretici
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Kodları Çek
+        uses: actions/checkout@v4
+
+      - name: Python Kur
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Flet Kur
+        run: pip install -r requirements.txt
+
+      - name: Java 17 Kur
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: '17'
+
+      - name: Flutter Motorunu Kur
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+
+      - name: APK İNŞAATI!
+        run: flet build apk
+
+      - name: APK'yı Teslim Et
+        uses: actions/upload-artifact@v4
+        with:
+          name: Eurometrics-Saha-APK
+          path: build/apk/app-release.apk
