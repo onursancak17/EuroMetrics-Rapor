@@ -8,8 +8,6 @@ def main(page: ft.Page):
     page.title = "Eurometrics Mobil"
     page.scroll = "adaptive"
     page.theme_mode = ft.ThemeMode.LIGHT
-    page.window_width = 400
-    page.window_height = 800
     page.padding = 20
 
     baslik = ft.Text("Eurometrics Saha Asistanı", size=24, weight="bold", color=ft.colors.BLUE_900)
