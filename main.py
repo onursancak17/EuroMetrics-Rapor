@@ -41,10 +41,10 @@ else:
 st.divider()
 st.markdown("#### Saha Parametreleri")
 
+# DİKKAT: Baca Mutlak Basıncı kutusu kaldırıldı, arka planda dinamik hesaplanacak!
 c1, c2 = st.columns(2)
 with c1:
     atm_mbar = st.number_input("Atmosfer Basıncı (mbar)", value=1010.5)
-    bmutlak_giris_mbar = st.number_input("Baca Mutlak Basıncı (mbar)", value=1009.1)
     nem = st.number_input("Nem (%)", value=4.0)
     bsicaklik = st.number_input("Baca Sıcaklığı (°C)", value=23.5)
 with c2:
@@ -126,11 +126,13 @@ if st.button("SAHA ŞARTLARINA GÖRE ÜRET", use_container_width=True, type="pri
             bitis_zaman = baslangic_zaman + timedelta(minutes=brut_toplam_sure)
             
             while True:
-                test_hiz_base = hedef_hiz + random.uniform(0.1, 0.9) 
+                # 3 FARKLI ÖLÇÜMÜN BİRBİRİNDEN FARKLI OLMASI İÇİN TEMEL KAYDIRMALAR
+                test_hiz_base = hedef_hiz + random.uniform(-0.4, 0.5) 
                 test_b_sic_base = hedef_b_sicaklik + random.uniform(-1.5, 1.5)
                 test_s_sic_base = hedef_s_sicaklik + random.uniform(-1.0, 1.0)
-                test_b_mut_mbar_base = float(bmutlak_giris_mbar) + random.uniform(-1.5, 1.5)
-                if test_b_mut_mbar_base >= atm_mbar: test_b_mut_mbar_base = atm_mbar - random.uniform(0.5, 2.0) 
+                
+                # Baca Mutlak Basıncı Dinamik Hesaplama (Hıza bağlı ID Fan Emişi)
+                bmutlak_ana_akim_mbar = float(atm_mbar) - (1.0 + (test_hiz_base * 0.05))
 
                 traversler_temp = []
                 toplam_v_act_l_temp = 0.0
@@ -147,11 +149,15 @@ if st.button("SAHA ŞARTLARINA GÖRE ÜRET", use_container_width=True, type="pri
                         
                     anlik_b_sic = test_b_sic_base + random.uniform(-0.5, 0.5)
                     anlik_s_sic = test_s_sic_base + random.uniform(-0.3, 0.3)
-                    anlik_b_mut_kpa = (test_b_mut_mbar_base + random.uniform(-0.5, 0.5)) / 10.0
                     
-                    hiz_farki = anlik_hiz - hedef_hiz
-                    vakum_mbar = max(28, min(38, 31 + (hiz_farki * 3.0) + random.uniform(-1.0, 1.0)))
-                    anlik_s_bas_kpa = (atm_mbar - vakum_mbar) / 10.0
+                    # TÜRBÜLANS ETKİSİ: Baca Mutlak Basıncı her traverste dalgalanır
+                    anlik_b_mut_kpa = (bmutlak_ana_akim_mbar + random.uniform(-0.4, 0.4)) / 10.0
+                    
+                    # FİLTRE ŞİŞMESİ (Cihaz Vakumu): Travers ilerledikçe pompa zorlanır
+                    filtre_dolma_etkisi = (i / travers_sayisi) * (test_hiz_base * 0.3)
+                    vakum_mbar = 25.0 + (test_hiz_base * 0.5) + filtre_dolma_etkisi + random.uniform(-0.8, 0.8)
+                    anlik_s_bas_kpa = (float(atm_mbar) - vakum_mbar) / 10.0
+                    
                     anlik_izokin = random.uniform(izokin_alt, izokin_ust) 
                     
                     anlik_debi_ld = (3.14 * 60.0 * anlik_hiz * (float(nozul_mm) ** 2)) / 4000.0
@@ -251,7 +257,6 @@ izokin.verimi : {ort_izokin_genel:.2f}
 
         st.success("Rapor Başarıyla Üretildi! Aşağıdaki butona basarak telefonunuza indirebilirsiniz.")
         
-        # SİHİRLİ İNDİRME BUTONU (Tarayıcı direkt İndirilenler klasörüne atar)
         st.download_button(
             label="📥 RAPORU İNDİR (.txt)",
             data=tum_raporlar_metni,
