@@ -97,7 +97,7 @@ if st.button("SAHA ŞARTLARINA GÖRE ÜRET", use_container_width=True, type="pri
         
         # 3 ARDIŞIK ÖLÇÜM DÖNGÜSÜ
         for olcum in range(1, 4):
-            # GERÇEKÇİ HIZ DALGALANMASI
+            # 1. HIZ DALGALANMASI
             if olcum == 1: 
                 current_hiz_base = hedef_hiz_ana + random.uniform(-0.1, 0.1)
             elif olcum == 2: 
@@ -105,10 +105,13 @@ if st.button("SAHA ŞARTLARINA GÖRE ÜRET", use_container_width=True, type="pri
             else: 
                 current_hiz_base = hedef_hiz_ana + random.uniform(0.3, 0.4)
             
-            # MUTLAK BASINÇ DALGALANMASI (-0.7 ile +0.7 ARASI HASSAS AYAR)
+            # 2. MUTLAK BASINÇ DALGALANMASI
             sapma_mbar = random.uniform(-0.7, 0.7)
             hedef_b_mut_mbar_test = (float(atm_mbar) - 1.2) + sapma_mbar
             
+            # 3. SAYAÇ BASINCI DALGALANMASI (Senin istediğin o genel zorlanma farkı)
+            test_vakum_sapma = random.uniform(-2.5, 2.5)
+
             bitis_zaman = baslangic_zaman + timedelta(minutes=(net_toplam_sure + olu_sure))
 
             traversler = []
@@ -116,18 +119,16 @@ if st.button("SAHA ŞARTLARINA GÖRE ÜRET", use_container_width=True, type="pri
             toplam_v_n_nl = 0.0
             
             for i in range(1, travers_sayisi + 1):
-                # O anki testin hız merkezinde ufak dalgalanmalar
                 anlik_hiz = current_hiz_base + random.uniform(-0.3, 0.3)
                 anlik_b_sic = hedef_b_sicaklik + random.uniform(-0.8, 0.8)
                 anlik_s_sic = hedef_s_sicaklik + random.uniform(-0.4, 0.4)
                 
-                # Dinamik mutlak basınç (O testin merkezine göre türbülans)
                 anlik_b_mut_mbar = hedef_b_mut_mbar_test + random.uniform(-0.15, 0.15)
                 anlik_b_mut_kpa = anlik_b_mut_mbar / 10.0
                 
-                # Sayaç Vakumu ve Filtre şişmesi (Hıza bağlı olarak pompa daha çok zorlanır)
+                # Sayaç Vakumu ve Filtre şişmesi (Makro sapma eklendi!)
                 filtre_etkisi = (i / travers_sayisi) * (anlik_hiz * 0.25)
-                vakum = 26.0 + (anlik_hiz * 0.45) + filtre_etkisi + random.uniform(-0.5, 0.5)
+                vakum = 26.0 + (anlik_hiz * 0.45) + filtre_etkisi + test_vakum_sapma + random.uniform(-0.5, 0.5)
                 anlik_s_bas_kpa = (float(atm_mbar) - vakum) / 10.0
                 
                 anlik_izokin = random.uniform(0.97, 1.03)
