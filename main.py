@@ -26,7 +26,6 @@ with col1:
 with col2:
     saat_str = st.text_input("Başlangıç Saati (SS:DD)", value="10:00")
     sekil = st.selectbox("Baca Şekli", ["Dairesel", "Dikdörtgen"])
-    # İŞTE BURAYA DOSYA ADI KUTUSUNU EKLEDİK:
     dosya_adi_input = st.text_input("Kayıt Edilecek Dosya Adı", value="Baca_1_Olcum")
 
 if sekil == "Dairesel":
@@ -130,8 +129,6 @@ if st.button("SAHA ŞARTLARINA GÖRE ÜRET", use_container_width=True, type="pri
                 test_hiz_base = hedef_hiz + random.uniform(-0.4, 0.5) 
                 test_b_sic_base = hedef_b_sicaklik + random.uniform(-1.5, 1.5)
                 test_s_sic_base = hedef_s_sicaklik + random.uniform(-1.0, 1.0)
-                
-                bmutlak_ana_akim_mbar = float(atm_mbar) - (1.0 + (test_hiz_base * 0.05))
 
                 traversler_temp = []
                 toplam_v_act_l_temp = 0.0
@@ -149,8 +146,15 @@ if st.button("SAHA ŞARTLARINA GÖRE ÜRET", use_container_width=True, type="pri
                     anlik_b_sic = test_b_sic_base + random.uniform(-0.5, 0.5)
                     anlik_s_sic = test_s_sic_base + random.uniform(-0.3, 0.3)
                     
-                    anlik_b_mut_kpa = (bmutlak_ana_akim_mbar + random.uniform(-0.4, 0.4)) / 10.0
+                    # 1. BİLİMSEL FORMÜL: Gaz Yoğunluğu ve Dinamik Basınç Hesabı
+                    yogunluk = rho_std_yas * (atm_kpa / p_std) * (t_std / (t_std + anlik_b_sic))
+                    dp_pa = ((anlik_hiz / pitot_k)**2) * yogunluk / 2.0
                     
+                    # 2. BİLİMSEL FORMÜL: Dinamik basınçtan Statik vakum çekişi
+                    statik_basinc_pa = -(random.uniform(1.8, 2.2)) * dp_pa
+                    anlik_b_mut_kpa = (float(atm_mbar) + (statik_basinc_pa / 100.0)) / 10.0
+                    
+                    # FİLTRE ŞİŞMESİ: Travers ilerledikçe pompa vakumu zorlanır
                     filtre_dolma_etkisi = (i / travers_sayisi) * (test_hiz_base * 0.3)
                     vakum_mbar = 25.0 + (test_hiz_base * 0.5) + filtre_dolma_etkisi + random.uniform(-0.8, 0.8)
                     anlik_s_bas_kpa = (float(atm_mbar) - vakum_mbar) / 10.0
@@ -159,11 +163,10 @@ if st.button("SAHA ŞARTLARINA GÖRE ÜRET", use_container_width=True, type="pri
                     
                     anlik_debi_ld = (3.14 * 60.0 * anlik_hiz * (float(nozul_mm) ** 2)) / 4000.0
                     anlik_v_act_l = anlik_debi_ld * sure_per_travers * anlik_izokin
-                    anlik_v_n_nl = anlik_v_act_l * (anlik_s_bas_kpa / 101.325) * (273.15 / (273.15 + anlik_s_sic)) * ((100.0 - nem) / 100.0)
+                    anlik_v_n_nl = anlik_v_act_l * (anlik_s_bas_kpa / p_std) * (t_std / (t_std + anlik_s_sic)) * ((100.0 - nem) / 100.0)
                     
                     toplam_v_act_l_temp += anlik_v_act_l
                     toplam_v_n_nl_temp += anlik_v_n_nl
-                    dp_pa = ((anlik_hiz / pitot_k)**2) * (rho_std_yas * (anlik_b_mut_kpa / p_std) * (t_std / (t_std + anlik_b_sic))) / 2.0
 
                     traversler_temp.append({
                         "no": i, "hiz": anlik_hiz, "v_n_kum": toplam_v_n_nl_temp, "v_act_kum": toplam_v_act_l_temp,
@@ -254,7 +257,6 @@ izokin.verimi : {ort_izokin_genel:.2f}
 
         st.success("Rapor Başarıyla Üretildi! Aşağıdaki butona basarak telefonunuza indirebilirsiniz.")
         
-        # DOSYA ADI ARTIK SENİN YAZDIĞIN GİBİ OLACAK:
         st.download_button(
             label="📥 RAPORU İNDİR (.txt)",
             data=tum_raporlar_metni,
