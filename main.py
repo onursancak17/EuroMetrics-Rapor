@@ -26,6 +26,8 @@ with col1:
 with col2:
     saat_str = st.text_input("Başlangıç Saati (SS:DD)", value="10:00")
     sekil = st.selectbox("Baca Şekli", ["Dairesel", "Dikdörtgen"])
+    # İŞTE BURAYA DOSYA ADI KUTUSUNU EKLEDİK:
+    dosya_adi_input = st.text_input("Kayıt Edilecek Dosya Adı", value="Baca_1_Olcum")
 
 if sekil == "Dairesel":
     cap_cm = st.number_input("Dairesel Çap (cm)", value=45.0)
@@ -41,7 +43,6 @@ else:
 st.divider()
 st.markdown("#### Saha Parametreleri")
 
-# DİKKAT: Baca Mutlak Basıncı kutusu kaldırıldı, arka planda dinamik hesaplanacak!
 c1, c2 = st.columns(2)
 with c1:
     atm_mbar = st.number_input("Atmosfer Basıncı (mbar)", value=1010.5)
@@ -126,12 +127,10 @@ if st.button("SAHA ŞARTLARINA GÖRE ÜRET", use_container_width=True, type="pri
             bitis_zaman = baslangic_zaman + timedelta(minutes=brut_toplam_sure)
             
             while True:
-                # 3 FARKLI ÖLÇÜMÜN BİRBİRİNDEN FARKLI OLMASI İÇİN TEMEL KAYDIRMALAR
                 test_hiz_base = hedef_hiz + random.uniform(-0.4, 0.5) 
                 test_b_sic_base = hedef_b_sicaklik + random.uniform(-1.5, 1.5)
                 test_s_sic_base = hedef_s_sicaklik + random.uniform(-1.0, 1.0)
                 
-                # Baca Mutlak Basıncı Dinamik Hesaplama (Hıza bağlı ID Fan Emişi)
                 bmutlak_ana_akim_mbar = float(atm_mbar) - (1.0 + (test_hiz_base * 0.05))
 
                 traversler_temp = []
@@ -150,10 +149,8 @@ if st.button("SAHA ŞARTLARINA GÖRE ÜRET", use_container_width=True, type="pri
                     anlik_b_sic = test_b_sic_base + random.uniform(-0.5, 0.5)
                     anlik_s_sic = test_s_sic_base + random.uniform(-0.3, 0.3)
                     
-                    # TÜRBÜLANS ETKİSİ: Baca Mutlak Basıncı her traverste dalgalanır
                     anlik_b_mut_kpa = (bmutlak_ana_akim_mbar + random.uniform(-0.4, 0.4)) / 10.0
                     
-                    # FİLTRE ŞİŞMESİ (Cihaz Vakumu): Travers ilerledikçe pompa zorlanır
                     filtre_dolma_etkisi = (i / travers_sayisi) * (test_hiz_base * 0.3)
                     vakum_mbar = 25.0 + (test_hiz_base * 0.5) + filtre_dolma_etkisi + random.uniform(-0.8, 0.8)
                     anlik_s_bas_kpa = (float(atm_mbar) - vakum_mbar) / 10.0
@@ -257,10 +254,11 @@ izokin.verimi : {ort_izokin_genel:.2f}
 
         st.success("Rapor Başarıyla Üretildi! Aşağıdaki butona basarak telefonunuza indirebilirsiniz.")
         
+        # DOSYA ADI ARTIK SENİN YAZDIĞIN GİBİ OLACAK:
         st.download_button(
             label="📥 RAPORU İNDİR (.txt)",
             data=tum_raporlar_metni,
-            file_name=f"Baca_{baca_no}_Olcum.txt",
+            file_name=f"{dosya_adi_input}.txt",
             mime="text/plain",
             type="primary"
         )
