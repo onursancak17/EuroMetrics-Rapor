@@ -48,7 +48,7 @@ with c1:
     nem = st.number_input("Nem (%)", value=4.0)
     bsicaklik = st.number_input("Baca Sıcaklığı (°C)", value=23.5)
 with c2:
-    hiz = st.number_input("Baca Gazı Hızı (m/s)", value=11.0)
+    hiz_input = st.number_input("Hedef Baca Gazı Hızı (m/s)", value=11.5)
     nozul_mm = st.number_input("Nozul Çapı (mm)", value=6.0)
     ssicaklik = st.number_input("Sayaç Sıcaklığı (°C)", value=21.4)
 
@@ -56,147 +56,104 @@ st.divider()
 
 if st.button("SAHA ŞARTLARINA GÖRE ÜRET", use_container_width=True, type="primary"):
     try:
-        hedef_hiz = float(hiz)
+        hedef_hiz_ana = float(hiz_input)
         hedef_b_sicaklik = float(bsicaklik)
         atm_kpa = float(atm_mbar) / 10.0
         hedef_s_sicaklik = float(ssicaklik)
         
+        # Süre hesapları
         toplam_sure_min = 30 
-        izokin_alt, izokin_ust = 0.96, 1.04 
-
         if "Diyoksin" in metot: toplam_sure_min = 360 
         elif "PAH" in metot: toplam_sure_min = 180 
-        elif "14385" in metot or "Metot 29" in metot or "26A" in metot: toplam_sure_min = 60 
-        else: toplam_sure_min = 30 
+        elif any(x in metot for x in ["14385", "Metot 29", "26A"]): toplam_sure_min = 60 
 
-        travers_sayisi_ham = 1
-        if "EPA" in metot:
-            if sekil == "Dairesel":
-                if "1.5D" in metot: travers_sayisi_ham = 20
-                elif "1D" in metot or "0.5D" in metot: travers_sayisi_ham = 24
-                else: 
-                    if cap_cm <= 29: travers_sayisi_ham = 1
-                    elif cap_cm <= 61: travers_sayisi_ham = 8
-                    else: travers_sayisi_ham = 12
-            else: 
-                if alan_baca <= 0.089: travers_sayisi_ham = 1
-                elif alan_baca <= 0.37: travers_sayisi_ham = 9
-                elif alan_baca <= 1.49: travers_sayisi_ham = 12
-                else: travers_sayisi_ham = 25
-        else: 
-            if sekil == "Dairesel":
-                if cap_cm <= 34: travers_sayisi_ham = 1
-                elif cap_cm <= 69: travers_sayisi_ham = 4
-                elif cap_cm <= 99: travers_sayisi_ham = 8
-                elif cap_cm <= 199: travers_sayisi_ham = 12
-                else: travers_sayisi_ham = 16
-            else: 
-                if alan_baca <= 0.089: travers_sayisi_ham = 1
-                elif alan_baca <= 0.37: travers_sayisi_ham = 4
-                elif alan_baca <= 1.49: travers_sayisi_ham = 9
-                else: travers_sayisi_ham = 16
-
-        if travers_sayisi_ham > 1:
-            if sekil == "Dairesel": port_sayisi = 2 
-            else: port_sayisi = int(port_sayisi_input) 
-            nokta_per_port = round(travers_sayisi_ham / port_sayisi)
-            if nokta_per_port < 1: nokta_per_port = 1
-            travers_sayisi = port_sayisi * nokta_per_port
+        # Travers nokta hesapları
+        if sekil == "Dairesel":
+            if cap_cm <= 34: t_ham = 1
+            elif cap_cm <= 69: t_ham = 4
+            elif cap_cm <= 99: t_ham = 8
+            elif cap_cm <= 199: t_ham = 12
+            else: t_ham = 16
         else:
-            travers_sayisi = 1
-
+            if alan_baca <= 0.089: t_ham = 1
+            elif alan_baca <= 0.37: t_ham = 4
+            elif alan_baca <= 1.49: t_ham = 9
+            else: t_ham = 16
+        
+        travers_sayisi = t_ham
         sure_per_travers = math.ceil(toplam_sure_min / travers_sayisi)
         net_toplam_sure = sure_per_travers * travers_sayisi 
         olu_sure = 0 if travers_sayisi == 1 else int(travers_sayisi / 4) + random.randint(0, 1)
 
         pitot_k = 0.84
-        t_std = 273.15
         p_std = 101.325
+        t_std = 273.15
         kpa_to_mmhg = 7.50062
-        
         M_s = (28.97 * (1 - (nem/100.0))) + (18.01 * (nem/100.0)) 
         rho_std_yas = M_s / 22.414 
         
         baslangic_zaman = datetime.strptime(f"{tarih_str} {saat_str}", "%d/%m/%y %H:%M")
         tum_raporlar_metni = ""
-        uretilen_ort_hizlar = set()
         
+        # 3 ARDIŞIK ÖLÇÜM DÖNGÜSÜ
         for olcum in range(1, 4):
-            brut_toplam_sure = net_toplam_sure + olu_sure
-            bitis_zaman = baslangic_zaman + timedelta(minutes=brut_toplam_sure)
+            # İŞTE SENİN İSTEDİĞİN O GERÇEKÇİ HIZ DALGALANMASI BURADA!
+            if olcum == 1: 
+                current_hiz_base = hedef_hiz_ana + random.uniform(-0.1, 0.1) # 1. Ölçüm: Merkezde (örn: 11.5)
+            elif olcum == 2: 
+                current_hiz_base = hedef_hiz_ana - random.uniform(0.3, 0.4)  # 2. Ölçüm: Düşük (örn: 11.1 - 11.2)
+            else: 
+                current_hiz_base = hedef_hiz_ana + random.uniform(0.3, 0.4)  # 3. Ölçüm: Yüksek (örn: 11.8 - 11.9)
             
-            # KAZAN YÜKÜ DALGALANMASI: -1.0 ile +1.0 mbar arası rastgele sapma
-            olcum_mutlak_sapma_mbar = random.uniform(-1.0, 1.0)
+            # MUTLAK BASINÇ DALGALANMASI (Atmosferden rastgele organik bir miktar düşüyoruz)
+            hedef_b_mut_mbar_test = float(atm_mbar) - random.uniform(0.5, 1.8)
+            bitis_zaman = baslangic_zaman + timedelta(minutes=(net_toplam_sure + olu_sure))
+
+            traversler = []
+            toplam_v_act_l = 0.0
+            toplam_v_n_nl = 0.0
             
-            while True:
-                test_hiz_base = hedef_hiz + random.uniform(-0.4, 0.5) 
-                test_b_sic_base = hedef_b_sicaklik + random.uniform(-1.5, 1.5)
-                test_s_sic_base = hedef_s_sicaklik + random.uniform(-1.0, 1.0)
-
-                traversler_temp = []
-                toplam_v_act_l_temp = 0.0
-                toplam_v_n_nl_temp = 0.0
+            for i in range(1, travers_sayisi + 1):
+                # O anki testin hız merkezinde ufak dalgalanmalar
+                anlik_hiz = current_hiz_base + random.uniform(-0.3, 0.3)
+                anlik_b_sic = hedef_b_sicaklik + random.uniform(-0.8, 0.8)
+                anlik_s_sic = hedef_s_sicaklik + random.uniform(-0.4, 0.4)
                 
-                for i in range(1, travers_sayisi + 1):
-                    anlik_hiz = test_hiz_base + random.uniform(-0.5, 0.6)
-                    if len(traversler_temp) > 0:
-                        while abs(anlik_hiz - traversler_temp[-1]['hiz']) > 1.0:
-                            anlik_hiz = test_hiz_base + random.uniform(-0.5, 0.6)
-                    
-                    if anlik_hiz < hedef_hiz: anlik_hiz = hedef_hiz + random.uniform(0.01, 0.05)
-                    if anlik_hiz > (hedef_hiz + 1.1): anlik_hiz = (hedef_hiz + 1.1) - random.uniform(0.01, 0.05)
-                        
-                    anlik_b_sic = test_b_sic_base + random.uniform(-0.5, 0.5)
-                    anlik_s_sic = test_s_sic_base + random.uniform(-0.3, 0.3)
-                    
-                    # 1. BİLİMSEL FORMÜL: Gaz Yoğunluğu ve Dinamik Basınç Hesabı
-                    yogunluk = rho_std_yas * (atm_kpa / p_std) * (t_std / (t_std + anlik_b_sic))
-                    dp_pa = ((anlik_hiz / pitot_k)**2) * yogunluk / 2.0
-                    
-                    # 2. BİLİMSEL FORMÜL: Dinamik basınçtan Statik vakum çekişi
-                    statik_basinc_pa = -(random.uniform(1.8, 2.2)) * dp_pa
-                    
-                    # 3. GERÇEKÇİLİK: Kazan Yükü Dalgalanmasını (-1 ile +1 arası) ekliyoruz!
-                    anlik_b_mut_kpa = (float(atm_mbar) + (statik_basinc_pa / 100.0) + olcum_mutlak_sapma_mbar) / 10.0
-                    
-                    # FİLTRE ŞİŞMESİ: Travers ilerledikçe pompa vakumu zorlanır
-                    filtre_dolma_etkisi = (i / travers_sayisi) * (test_hiz_base * 0.3)
-                    vakum_mbar = 25.0 + (test_hiz_base * 0.5) + filtre_dolma_etkisi + random.uniform(-0.8, 0.8)
-                    anlik_s_bas_kpa = (float(atm_mbar) - vakum_mbar) / 10.0
-                    
-                    anlik_izokin = random.uniform(izokin_alt, izokin_ust) 
-                    
-                    anlik_debi_ld = (3.14 * 60.0 * anlik_hiz * (float(nozul_mm) ** 2)) / 4000.0
-                    anlik_v_act_l = anlik_debi_ld * sure_per_travers * anlik_izokin
-                    anlik_v_n_nl = anlik_v_act_l * (anlik_s_bas_kpa / p_std) * (t_std / (t_std + anlik_s_sic)) * ((100.0 - nem) / 100.0)
-                    
-                    toplam_v_act_l_temp += anlik_v_act_l
-                    toplam_v_n_nl_temp += anlik_v_n_nl
-
-                    traversler_temp.append({
-                        "no": i, "hiz": anlik_hiz, "v_n_kum": toplam_v_n_nl_temp, "v_act_kum": toplam_v_act_l_temp,
-                        "b_sic": anlik_b_sic, "s_sic": anlik_s_sic, "b_mut_kpa": anlik_b_mut_kpa, 
-                        "s_bas_kpa": anlik_s_bas_kpa, "dp": dp_pa, "izokin": anlik_izokin
-                    })
-
-                ort_hiz_genel_temp = sum(x['hiz'] for x in traversler_temp) / travers_sayisi
-                ort_hiz_yuvarlanmis = round(ort_hiz_genel_temp, 1)
+                # Dinamik mutlak basınç (O testin merkezine göre türbülans)
+                anlik_b_mut_mbar = hedef_b_mut_mbar_test + random.uniform(-0.15, 0.15)
+                anlik_b_mut_kpa = anlik_b_mut_mbar / 10.0
                 
-                if (ort_hiz_yuvarlanmis not in uretilen_ort_hizlar) and (hedef_hiz <= ort_hiz_yuvarlanmis <= hedef_hiz + 1.1):
-                    uretilen_ort_hizlar.add(ort_hiz_yuvarlanmis)
-                    traversler = traversler_temp
-                    toplam_v_act_l = toplam_v_act_l_temp
-                    toplam_v_n_nl = toplam_v_n_nl_temp
-                    ort_hiz_genel = ort_hiz_genel_temp
-                    break
+                # Sayaç Vakumu ve Filtre şişmesi (Hıza bağlı olarak pompa daha çok zorlanır)
+                filtre_etkisi = (i / travers_sayisi) * (anlik_hiz * 0.25)
+                vakum = 26.0 + (anlik_hiz * 0.45) + filtre_etkisi + random.uniform(-0.5, 0.5)
+                anlik_s_bas_kpa = (float(atm_mbar) - vakum) / 10.0
+                
+                anlik_izokin = random.uniform(0.97, 1.03)
+                anlik_debi_ld = (3.14 * 60.0 * anlik_hiz * (float(nozul_mm) ** 2)) / 4000.0
+                anlik_v_act_l = anlik_debi_ld * sure_per_travers * anlik_izokin
+                anlik_v_n_nl = anlik_v_act_l * (anlik_s_bas_kpa / p_std) * (t_std / (t_std + anlik_s_sic)) * ((100.0 - nem) / 100.0)
+                
+                toplam_v_act_l += anlik_v_act_l
+                toplam_v_n_nl += anlik_v_n_nl
+                
+                yogunluk = rho_std_yas * (atm_kpa / p_std) * (t_std / (t_std + anlik_b_sic))
+                dp_pa = ((anlik_hiz / pitot_k)**2) * yogunluk / 2.0
 
-            ort_b_sic_genel = sum(x['b_sic'] for x in traversler) / travers_sayisi
-            ort_s_sic_genel = sum(x['s_sic'] for x in traversler) / travers_sayisi
-            ort_b_mut_genel = sum(x['b_mut_kpa'] for x in traversler) / travers_sayisi
-            ort_s_bas_genel = sum(x['s_bas_kpa'] for x in traversler) / travers_sayisi
-            ort_izokin_genel = sum(x['izokin'] for x in traversler) / travers_sayisi
-            ort_dp_genel = sum(x['dp'] for x in traversler) / travers_sayisi
-            ort_vakum = (toplam_v_n_nl / net_toplam_sure) if net_toplam_sure > 0 else 0.0
+                traversler.append({
+                    "no": i, "hiz": anlik_hiz, "v_n_kum": toplam_v_n_nl, "v_act_kum": toplam_v_act_l,
+                    "b_sic": anlik_b_sic, "s_sic": anlik_s_sic, "b_mut_kpa": anlik_b_mut_kpa, 
+                    "s_bas_kpa": anlik_s_bas_kpa, "dp": dp_pa, "izokin": anlik_izokin
+                })
+
+            # 3. Özet değerler
+            o_hiz = sum(x['hiz'] for x in traversler) / travers_sayisi
+            o_b_sic = sum(x['b_sic'] for x in traversler) / travers_sayisi
+            o_s_sic = sum(x['s_sic'] for x in traversler) / travers_sayisi
+            o_b_mut = sum(x['b_mut_kpa'] for x in traversler) / travers_sayisi
+            o_s_bas = sum(x['s_bas_kpa'] for x in traversler) / travers_sayisi
+            o_izokin = sum(x['izokin'] for x in traversler) / travers_sayisi
+            o_dp = sum(x['dp'] for x in traversler) / travers_sayisi
+            o_vakum_debi = (toplam_v_n_nl / net_toplam_sure)
 
             rapor = f"""IZOKINETIK ORNEKLEME RAPORU
 -------------------------   
@@ -238,32 +195,30 @@ Baslangic     : {baslangic_zaman.strftime("%y/%m/%d %H:%M")}
 Bitis         : {bitis_zaman.strftime("%y/%m/%d %H:%M")}
 Ornekleme Sure: {net_toplam_sure}:00
 Baca no       : {baca_no}
-Ort.baca hizi : {ort_hiz_genel:.1f} m/s
-Ort.vakum debi: {ort_vakum:.1f} Nl/dk
+Ort.baca hizi : {o_hiz:.1f} m/s
+Ort.vakum debi: {o_vakum_debi:.1f} Nl/dk
 Kurugaz hacmi : {toplam_v_n_nl:.1f} Nl
 Sayac hacmi   : {toplam_v_act_l:.1f} l
-Baca sicakligi: {ort_b_sic_genel:.1f} C
-Sayac gaz sic.: {ort_s_sic_genel:.1f} C
+Baca sicakligi: {o_b_sic:.1f} C
+Sayac gaz sic.: {o_s_sic:.1f} C
 Referans scklk: 0.0 C
-Baca mutlk bas: {ort_b_mut_genel:.2f} kPa
-Baca mutlk bas: {ort_b_mut_genel * kpa_to_mmhg:.2f} mmHg
-Sayac basinci : {ort_s_bas_genel:.2f} kPa
-Sayac basinci : {ort_s_bas_genel * kpa_to_mmhg:.2f} mmHg
+Baca mutlk bas: {o_b_mut:.2f} kPa
+Baca mutlk bas: {o_b_mut * kpa_to_mmhg:.2f} mmHg
+Sayac basinci : {o_s_bas:.2f} kPa
+Sayac basinci : {o_s_bas * kpa_to_mmhg:.2f} mmHg
 Referans basnc: 101.33 kPa
 Referans basnc: 760.00 mmHg
-Pitot dP      : {ort_dp_genel:.2f} Pa
-Pitot dP      : {ort_dp_genel * 0.00750062:.2f} mmHg
-izokin.verimi : {ort_izokin_genel:.2f}
+Pitot dP      : {o_dp:.2f} Pa
+Pitot dP      : {o_dp * 0.00750062:.2f} mmHg
+izokin.verimi : {o_izokin:.2f}
 """
             tum_raporlar_metni += rapor
             if olcum < 3: tum_raporlar_metni += "\n" * 6
-            bekleme_suresi = random.randint(12, 15)
-            baslangic_zaman = bitis_zaman + timedelta(minutes=bekleme_suresi)
+            baslangic_zaman = bitis_zaman + timedelta(minutes=random.randint(12, 15))
 
-        st.success("Rapor Başarıyla Üretildi! Aşağıdaki butona basarak telefonunuza indirebilirsiniz.")
-        
+        st.success("Saha Simülasyonu Başarıyla Tamamlandı!")
         st.download_button(
-            label="📥 RAPORU İNDİR (.txt)",
+            label="📥 GERÇEKÇİ RAPORU İNDİR (.txt)",
             data=tum_raporlar_metni,
             file_name=f"{dosya_adi_input}.txt",
             mime="text/plain",
@@ -271,4 +226,4 @@ izokin.verimi : {ort_izokin_genel:.2f}
         )
 
     except Exception as e:
-        st.error(f"Bir hata oluştu. Lütfen formatları kontrol edin: {e}")
+        st.error(f"Saha verilerinde hata: {e}")
