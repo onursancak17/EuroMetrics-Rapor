@@ -125,6 +125,9 @@ if st.button("SAHA ŞARTLARINA GÖRE ÜRET", use_container_width=True, type="pri
             brut_toplam_sure = net_toplam_sure + olu_sure
             bitis_zaman = baslangic_zaman + timedelta(minutes=brut_toplam_sure)
             
+            # KAZAN YÜKÜ DALGALANMASI: -1.0 ile +1.0 mbar arası rastgele sapma
+            olcum_mutlak_sapma_mbar = random.uniform(-1.0, 1.0)
+            
             while True:
                 test_hiz_base = hedef_hiz + random.uniform(-0.4, 0.5) 
                 test_b_sic_base = hedef_b_sicaklik + random.uniform(-1.5, 1.5)
@@ -152,7 +155,9 @@ if st.button("SAHA ŞARTLARINA GÖRE ÜRET", use_container_width=True, type="pri
                     
                     # 2. BİLİMSEL FORMÜL: Dinamik basınçtan Statik vakum çekişi
                     statik_basinc_pa = -(random.uniform(1.8, 2.2)) * dp_pa
-                    anlik_b_mut_kpa = (float(atm_mbar) + (statik_basinc_pa / 100.0)) / 10.0
+                    
+                    # 3. GERÇEKÇİLİK: Kazan Yükü Dalgalanmasını (-1 ile +1 arası) ekliyoruz!
+                    anlik_b_mut_kpa = (float(atm_mbar) + (statik_basinc_pa / 100.0) + olcum_mutlak_sapma_mbar) / 10.0
                     
                     # FİLTRE ŞİŞMESİ: Travers ilerledikçe pompa vakumu zorlanır
                     filtre_dolma_etkisi = (i / travers_sayisi) * (test_hiz_base * 0.3)
