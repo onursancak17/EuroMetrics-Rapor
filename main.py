@@ -97,16 +97,18 @@ if st.button("SAHA ŞARTLARINA GÖRE ÜRET", use_container_width=True, type="pri
         
         # 3 ARDIŞIK ÖLÇÜM DÖNGÜSÜ
         for olcum in range(1, 4):
-            # İŞTE SENİN İSTEDİĞİN O GERÇEKÇİ HIZ DALGALANMASI BURADA!
+            # GERÇEKÇİ HIZ DALGALANMASI
             if olcum == 1: 
-                current_hiz_base = hedef_hiz_ana + random.uniform(-0.1, 0.1) # 1. Ölçüm: Merkezde (örn: 11.5)
+                current_hiz_base = hedef_hiz_ana + random.uniform(-0.1, 0.1)
             elif olcum == 2: 
-                current_hiz_base = hedef_hiz_ana - random.uniform(0.3, 0.4)  # 2. Ölçüm: Düşük (örn: 11.1 - 11.2)
+                current_hiz_base = hedef_hiz_ana - random.uniform(0.3, 0.4)
             else: 
-                current_hiz_base = hedef_hiz_ana + random.uniform(0.3, 0.4)  # 3. Ölçüm: Yüksek (örn: 11.8 - 11.9)
+                current_hiz_base = hedef_hiz_ana + random.uniform(0.3, 0.4)
             
-            # MUTLAK BASINÇ DALGALANMASI (Atmosferden rastgele organik bir miktar düşüyoruz)
-            hedef_b_mut_mbar_test = float(atm_mbar) - random.uniform(0.5, 1.8)
+            # MUTLAK BASINÇ DALGALANMASI (-0.7 ile +0.7 ARASI HASSAS AYAR)
+            sapma_mbar = random.uniform(-0.7, 0.7)
+            hedef_b_mut_mbar_test = (float(atm_mbar) - 1.2) + sapma_mbar
+            
             bitis_zaman = baslangic_zaman + timedelta(minutes=(net_toplam_sure + olu_sure))
 
             traversler = []
