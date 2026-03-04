@@ -45,6 +45,8 @@ st.markdown("#### Saha Parametreleri")
 c1, c2 = st.columns(2)
 with c1:
     atm_mbar = st.number_input("Atmosfer Basıncı (mbar)", value=1010.5)
+    # İŞTE BURAYA SAYAÇ BASINCI KUTUSUNU EKLEDİK:
+    sayac_basinci_input = st.number_input("Sayaç Basıncı (mbar)", value=970.0)
     nem = st.number_input("Nem (%)", value=4.0)
     bsicaklik = st.number_input("Baca Sıcaklığı (°C)", value=23.5)
 with c2:
@@ -59,6 +61,7 @@ if st.button("SAHA ŞARTLARINA GÖRE ÜRET", use_container_width=True, type="pri
         hedef_hiz_ana = float(hiz_input)
         hedef_b_sicaklik = float(bsicaklik)
         atm_kpa = float(atm_mbar) / 10.0
+        hedef_s_bas_mbar = float(sayac_basinci_input) # Ekrandan aldığımız sayaç basıncı
         hedef_s_sicaklik = float(ssicaklik)
         
         # Süre hesapları
@@ -105,12 +108,17 @@ if st.button("SAHA ŞARTLARINA GÖRE ÜRET", use_container_width=True, type="pri
             else: 
                 current_hiz_base = hedef_hiz_ana + random.uniform(0.3, 0.4)
             
-            # 2. MUTLAK BASINÇ DALGALANMASI
+            # 2. MUTLAK BASINÇ DALGALANMASI (-0.7 ile +0.7 ARASI)
             sapma_mbar = random.uniform(-0.7, 0.7)
             hedef_b_mut_mbar_test = (float(atm_mbar) - 1.2) + sapma_mbar
             
-            # 3. SAYAÇ BASINCI DALGALANMASI (Senin istediğin o genel zorlanma farkı)
-            test_vakum_sapma = random.uniform(-2.5, 2.5)
+            # 3. SAYAÇ BASINCI DALGALANMASI (Senin verdiğin değere göre 970 -> 968 -> 972 mantığı)
+            if olcum == 1:
+                test_s_bas_merkez_mbar = hedef_s_bas_mbar + random.uniform(-0.5, 0.5)
+            elif olcum == 2:
+                test_s_bas_merkez_mbar = hedef_s_bas_mbar - random.uniform(1.5, 2.5) # Yaklaşık 2 mbar düşer
+            else:
+                test_s_bas_merkez_mbar = hedef_s_bas_mbar + random.uniform(1.5, 2.5) # Yaklaşık 2 mbar artar
 
             bitis_zaman = baslangic_zaman + timedelta(minutes=(net_toplam_sure + olu_sure))
 
@@ -119,17 +127,19 @@ if st.button("SAHA ŞARTLARINA GÖRE ÜRET", use_container_width=True, type="pri
             toplam_v_n_nl = 0.0
             
             for i in range(1, travers_sayisi + 1):
+                # O anki testin hız merkezinde ufak dalgalanmalar
                 anlik_hiz = current_hiz_base + random.uniform(-0.3, 0.3)
                 anlik_b_sic = hedef_b_sicaklik + random.uniform(-0.8, 0.8)
                 anlik_s_sic = hedef_s_sicaklik + random.uniform(-0.4, 0.4)
                 
+                # Dinamik mutlak basınç
                 anlik_b_mut_mbar = hedef_b_mut_mbar_test + random.uniform(-0.15, 0.15)
                 anlik_b_mut_kpa = anlik_b_mut_mbar / 10.0
                 
-                # Sayaç Vakumu ve Filtre şişmesi (Makro sapma eklendi!)
-                filtre_etkisi = (i / travers_sayisi) * (anlik_hiz * 0.25)
-                vakum = 26.0 + (anlik_hiz * 0.45) + filtre_etkisi + test_vakum_sapma + random.uniform(-0.5, 0.5)
-                anlik_s_bas_kpa = (float(atm_mbar) - vakum) / 10.0
+                # Sayaç Basıncı ve Filtre şişmesi (Filtre doldukça vakum artar, yani basınç bir miktar düşer)
+                filtre_etkisi = (i / travers_sayisi) * (anlik_hiz * 0.15)
+                anlik_s_bas_mbar = test_s_bas_merkez_mbar - filtre_etkisi + random.uniform(-0.5, 0.5)
+                anlik_s_bas_kpa = anlik_s_bas_mbar / 10.0
                 
                 anlik_izokin = random.uniform(0.97, 1.03)
                 anlik_debi_ld = (3.14 * 60.0 * anlik_hiz * (float(nozul_mm) ** 2)) / 4000.0
