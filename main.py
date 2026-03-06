@@ -18,10 +18,15 @@ metotlar = [
 
 metot = st.selectbox("Ölçüm Metodu", metotlar)
 
+# NOZUL TAVSİYESİ İÇİN METOT SÜRESİNİ BELİRLİYORUZ
+sure_tavsiye = 30 
+if "Diyoksin" in metot: sure_tavsiye = 360 
+elif "PAH" in metot: sure_tavsiye = 180 
+elif any(x in metot for x in ["14385", "Metot 29", "26A"]): sure_tavsiye = 60 
+
 col1, col2 = st.columns(2)
 with col1:
     c_seri = st.text_input("Cihaz Seri No", value="M5PMA-2310")
-    # İŞTE BURADAKİ TABELAYI DÜZELTTİK: GG/AA/YY oldu!
     tarih_str = st.text_input("Tarih (GG/AA/YY)", value="24/11/25")
     baca_no = st.text_input("Baca Adı / No", value="1")
 with col2:
@@ -51,7 +56,17 @@ with c1:
     bsicaklik = st.number_input("Baca Sıcaklığı (°C)", value=23.5)
 with c2:
     hiz_input = st.number_input("Hedef Baca Gazı Hızı (m/s)", value=11.5)
-    nozul_mm = st.number_input("Nozul Çapı (mm)", value=6.0)
+    
+    # MİNİMUM 600 LİTRE BARAJI İÇİN AKILLI NOZUL TAVSİYESİ
+    tavsiye_nozul = 6
+    if hiz_input > 0:
+        d_hesap = math.sqrt(40000 / (3.14 * hiz_input * sure_tavsiye))
+        tavsiye_nozul = math.ceil(d_hesap) # Bir üst tam sayıya yuvarla
+        if tavsiye_nozul < 4: tavsiye_nozul = 4
+        elif tavsiye_nozul > 16: tavsiye_nozul = 16
+        
+    # TAVSİYE KUTUYA OTOMATİK YAZILIR, AMA İSTERSEN DEĞİŞTİREBİLİRSİN
+    nozul_mm = st.number_input(f"Nozul Çapı (mm) [Tavsiye: {tavsiye_nozul} mm]", value=float(tavsiye_nozul))
     ssicaklik = st.number_input("Sayaç Sıcaklığı (°C)", value=21.4)
 
 st.divider()
@@ -64,13 +79,11 @@ if st.button("SAHA ŞARTLARINA GÖRE ÜRET", use_container_width=True, type="pri
         hedef_s_bas_mbar = float(sayac_basinci_input) 
         hedef_s_sicaklik = float(ssicaklik)
         
-        # Süre hesapları
         toplam_sure_min = 30 
         if "Diyoksin" in metot: toplam_sure_min = 360 
         elif "PAH" in metot: toplam_sure_min = 180 
         elif any(x in metot for x in ["14385", "Metot 29", "26A"]): toplam_sure_min = 60 
 
-        # Travers nokta hesapları
         if sekil == "Dairesel":
             if cap_cm <= 34: t_ham = 1
             elif cap_cm <= 69: t_ham = 4
@@ -95,11 +108,9 @@ if st.button("SAHA ŞARTLARINA GÖRE ÜRET", use_container_width=True, type="pri
         M_s = (28.97 * (1 - (nem/100.0))) + (18.01 * (nem/100.0)) 
         rho_std_yas = M_s / 22.414 
         
-        # Tarih formatımız zaten GG/AA/YY olarak kodlanmıştı, tıkır tıkır çalışıyor!
         baslangic_zaman = datetime.strptime(f"{tarih_str} {saat_str}", "%d/%m/%y %H:%M")
         tum_raporlar_metni = ""
         
-        # 3 ARDIŞIK ÖLÇÜM DÖNGÜSÜ
         for olcum in range(1, 4):
             if olcum == 1: 
                 current_hiz_base = hedef_hiz_ana + random.uniform(-0.1, 0.1)
